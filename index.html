@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Casino Demo — 4 Jackpot Machines</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>🎰</text></svg>">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-900">
+  <div id="root" class="min-h-screen"></div>
+
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <script type="text/babel" data-presets="env,react">
+    const { useEffect, useMemo, useRef, useState } = React;
+
+    const FIXED_PROBS = [0.18, 0.62, 0.44, 0.43];
+    const choice = (n) => Math.floor(Math.random() * n);
+    const bernoulli = (p) => (Math.random() < p ? 1 : 0);
+    const argmax = (arr) => { let max = -Infinity, idxs = []; for (let i = 0; i < arr.length; i++) { const v = arr[i]; if (v > max) { max = v; idxs = [i]; } else if (v === max) idxs.push(i); } return idxs.length ? idxs[Math.floor(Math.random() * idxs.length)] : 0; };
+
+    function makeBandit() { const probs = FIXED_PROBS.slice(); const best = Math.max(...probs); return { probs, best }; }
+    function makeAgent(name, k) { return { name, q: Array(k).fill(0), n: Array(k).fill(0), a: Array(k).fill(1), b: Array(k).fill(1), total: 0, pulls: 0, history: [{ step: 0, reward: 0, cumReward: 0, regret: 0 }] }; }
+
+    function drawLineChart(canvas, series, opts={}) {
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width = canvas.clientWidth;
+      const h = canvas.height = canvas.clientHeight;
+      ctx.clearRect(0,0,w,h);
+      const pad = 32;
+      const innerW = w - pad*2, innerH = h - pad*2;
+      const maxX = Math.max(1, ...series.map(s => s.data.length? s.data[s.data.length-1].x : 1));
+      const ys = series.flatMap(s => s.data.map(p => p.y));
+      const maxY = ys.length ? Math.max(1e-9, ...ys) : 1;
+      const minY = ys.length ? Math.min(0, ...ys) : 0;
+      const yRange = (maxY - minY) || 1;
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4,4]);
+      ctx.beginPath();
+      ctx.moveTo(pad, pad);
+      ctx.lineTo(pad, h-pad);
+      ctx.lineTo(w-pad, h-pad);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#64748b';
+      ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto';
+      ctx.textAlign = 'right';
+      ctx.fillText(maxY.toFixed(0), pad-6, pad+4);
+      ctx.fillText(minY.toFixed(0), pad-6, h-pad);
+      ctx.textAlign = 'center';
+      ctx.fillText(maxX.toFixed(0), w-pad, h-pad+14);
+      const colors = opts.colors || ['#2563eb','#10b981','#ef4444','#f59e0b'];
+      series.forEach((s, si) => {
+        ctx.strokeStyle = colors[si % colors.length];
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        s.data.forEach((p, i) => {
+          const x = pad + (p.x / Math.max(1,maxX)) * innerW;
+          const y = pad + (1 - (p.y - minY)/yRange) * innerH;
+          if (i === 0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+        });
+        ctx.stroke();
+        ctx.fillStyle = colors[si % colors.length];
+        ctx.fillText(s.name, pad + 70 + si*160, pad - 10);
+      });
+    }
+
+    function BarCompare({ data, bestIdx }) {
+      return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+          {data.map((d,i) => (
+            <div key={i} className="p-4 bg-white rounded-xl shadow border border-slate-100">
+              <div className="space-y-1">
+                <div className="text-sm font-semibold">Machine {i+1}</div>
+                <div className="inline-block px-2 py-0.5 rounded-md bg-slate-100 font-mono text-xs text-slate-700">p = {d.trueP.toFixed(2)}</div>
+              </div>
+              <div className="mt-3 space-y-2">
+                <div className="text-[11px] text-slate-500">True</div>
+                <div className="h-2 bg-slate-200 rounded overflow-hidden">
+                  <div className="h-2 rounded bg-slate-500" style={{ width: (Math.max(0, Math.min(1, d.trueP)) * 100) + '%' }}></div>
+                </div>
+                <div className="text-[11px] text-slate-500">Estimate</div>
+                <div className="h-2 bg-slate-200 rounded overflow-hidden">
+                  <div className="h-2 rounded bg-emerald-500" style={{ width: (Math.max(0, Math.min(1, d.est)) * 100) + '%' }}></div>
+                </div>
+              </div>
+              {i === bestIdx ? (
+                <div className="mt-3 text-center text-[12px] font-semibold text-orange-500">true best machine</div>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    function App() {
+      const k = 4;
+      const [bandit, setBandit] = useState(() => makeBandit());
+      const [epsilon, setEpsilon] = useState(0.1);
+      const [auto, setAuto] = useState(false);
+      const [tickRate, setTickRate] = useState(30);
+      const [batch, setBatch] = useState(1);
+      const [leftStrategy, setLeftStrategy] = useState('greedy');
+      const [agents, setAgents] = useState(() => [makeAgent("Greedy (All Exploitation)", k), makeAgent("Random (All Exploration)", k)]);
+      const [tests, setTests] = useState([]);
+      const timerRef = useRef(null);
+      const epsRef = useRef(epsilon);
+      const banditRef = useRef(bandit);
+      const batchRef = useRef(batch);
+      const rewardCanvasRef = useRef(null);
+      const regretCanvasRef = useRef(null);
+
+      useEffect(() => { epsRef.current = epsilon; }, [epsilon]);
+      useEffect(() => { banditRef.current = bandit; }, [bandit]);
+      useEffect(() => { batchRef.current = batch; }, [batch]);
+
+      useEffect(() => {
+        const names = { greedy: "Greedy (All Exploitation)", egreedy: "ε‑Greedy", ts: "Thompson Sampling" };
+        setAgents([makeAgent(names[leftStrategy], k), makeAgent("Random (All Exploration)", k)]);
+      }, [leftStrategy]);
+
+      const bestIdx = useMemo(() => { let m = -1, mi = 0; for (let i = 0; i < bandit.probs.length; i++) { if (bandit.probs[i] > m) { m = bandit.probs[i]; mi = i; } } return mi; }, [bandit]);
+
+      const stepMany = (times) => {
+        const localBandit = banditRef.current;
+        const localBestIdx = (() => { let m = -1, mi = 0; for (let i = 0; i < localBandit.probs.length; i++) { if (localBandit.probs[i] > m) { m = localBandit.probs[i]; mi = i; } } return mi; })();
+        const localEps = epsRef.current;
+        const strat = leftStrategy;
+        setAgents((prev) => {
+          let left = { ...prev[0] };
+          let right = { ...prev[1] };
+          const pickArm = (agent, policy) => {
+            if (policy === 'random') return choice(k);
+            if (policy === 'greedy') return argmax(agent.q);
+            if (policy === 'egreedy') return Math.random() < localEps ? choice(k) : argmax(agent.q);
+            if (policy === 'ts') {
+              let best = 0, idx = 0;
+              for (let i=0;i<k;i++) { const theta = sampleBeta(agent.a[i], agent.b[i]); if (i===0 || theta>best){ best=theta; idx=i; } }
+              return idx;
+            }
+            return choice(k);
+          };
+          const pull = (agent, policy) => {
+            const armIdx = pickArm(agent, policy);
+            const r = bernoulli(localBandit.probs[armIdx]);
+            const n = agent.n.slice();
+            const q = agent.q.slice();
+            const a = agent.a.slice();
+            const b = agent.b.slice();
+            n[armIdx] += 1;
+            q[armIdx] += (r - q[armIdx]) / n[armIdx];
+            a[armIdx] += r;
+            b[armIdx] += (1 - r);
+            const pulls = agent.pulls + 1;
+            const total = agent.total + r;
+            const ideal = pulls * localBandit.probs[localBestIdx];
+            const regret = ideal - total;
+            return { ...agent, n, q, a, b, pulls, total, history: agent.history.concat({ step: pulls, reward: r, cumReward: total, regret }) };
+          };
+          for (let i = 0; i < times; i++) {
+            left = pull(left, strat);
+            right = pull(right, 'random');
+          }
+          return [left, right];
+        });
+      };
+
+      function sampleBeta(alpha, beta) {
+        const x = gammaSample(alpha);
+        const y = gammaSample(beta);
+        return x/(x+y);
+      }
+      function gammaSample(shape) {
+        const d = shape - 1/3; const c = 1/Math.sqrt(9*d);
+        while(true){
+          let x, v;
+          do { x = normal01(); v = 1 + c*x; } while (v <= 0);
+          v = v*v*v;
+          const u = Math.random();
+          if (u < 1 - 0.331*x*x*x*x) return d*v;
+          if (Math.log(u) < 0.5*x*x + d*(1 - v + Math.log(v))) return d*v;
+        }
+      }
+      function normal01(){
+        let u=0, v=0; while(u===0) u=Math.random(); while(v===0) v=Math.random(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
+      }
+
+      useEffect(() => {
+        if (!auto) { if (timerRef.current) clearInterval(timerRef.current); timerRef.current = null; return; }
+        const interval = Math.max(5, Math.round(1000 / Math.max(1, tickRate)));
+        timerRef.current = setInterval(() => { stepMany(batchRef.current); }, interval);
+        return () => { if (timerRef.current) clearInterval(timerRef.current); timerRef.current = null; };
+      }, [auto, tickRate, leftStrategy]);
+
+      const resetLearning = () => {
+        const names = { greedy: "Greedy (All Exploitation)", egreedy: "ε‑Greedy", ts: "Thompson Sampling" };
+        setAgents([makeAgent(names[leftStrategy], k), makeAgent("Random (All Exploration)", k)]);
+        setAuto(false);
+      };
+
+      const chartData = useMemo(() => {
+        const len = Math.max(agents[0].history.length, agents[1].history.length);
+        const data = [];
+        for (let i = 0; i < len; i++) {
+          const p0 = agents[0].history[i] || agents[0].history[agents[0].history.length - 1];
+          const p1 = agents[1].history[i] || agents[1].history[agents[1].history.length - 1];
+          data.push({ step: p0.step, left: p0.cumReward, right: p1.cumReward, regretL: p0.regret, regretR: p1.regret });
+        }
+        return data;
+      }, [agents]);
+
+      useEffect(() => {
+        const rewardSeries = [
+          { name: agents[0].name, data: chartData.map(d=>({x:d.step,y:d.left})) },
+          { name: agents[1].name, data: chartData.map(d=>({x:d.step,y:d.right})) },
+        ];
+        const regretSeries = [
+          { name: agents[0].name, data: chartData.map(d=>({x:d.step,y:d.regretL})) },
+          { name: agents[1].name, data: chartData.map(d=>({x:d.step,y:d.regretR})) },
+        ];
+        if (rewardCanvasRef.current) drawLineChart(rewardCanvasRef.current, rewardSeries);
+        if (regretCanvasRef.current) drawLineChart(regretCanvasRef.current, regretSeries);
+      }, [chartData, agents]);
+
+      const leftEstimates = useMemo(() => {
+        if (leftStrategy === 'ts') return agents[0].a.map((aa,i)=>{ const bb = agents[0].b[i]; const denom = aa + bb; return denom ? (aa/denom) : 0; });
+        return agents[0].q;
+      }, [agents, leftStrategy]);
+
+      const armBarsData = useMemo(() => bandit.probs.map((p, i) => ({ trueP: p, est: leftEstimates[i] || 0 })), [bandit, leftEstimates]);
+
+      const runTests = () => {
+        const results = [];
+        try { const idx = argmax([1,1,1]); results.push({ name: "argmax tie", pass: [0,1,2].includes(idx) }); } catch (e) { results.push({ name: "argmax tie", pass: false }); }
+        try { const b = makeBandit(); const ok = b.probs.length===4 && b.probs[1]===0.62; results.push({ name: "fixed bandit", pass: ok }); } catch (e) { results.push({ name: "fixed bandit", pass: false }); }
+        try { const a = makeAgent("TS",4); const s = sampleBeta(a.a[0], a.b[0]); results.push({ name: "beta sampler", pass: s>0 && s<1 }); } catch(e){ results.push({ name: "beta sampler", pass:false }); }
+        setTests(results);
+      };
+
+      const showEps = leftStrategy === 'egreedy';
+
+      return (
+        <div className="min-h-screen p-6">
+          <div className="mx-auto max-w-6xl space-y-6">
+            <header className="space-y-1">
+              <div className="flex items-center justify-between">
+                <h1 className="text-2xl md:text-3xl font-semibold">Casino Demo: 4 Jackpot Machines</h1>
+                <div className="text-sm text-slate-600">Best p★ = <span className="font-mono">{bandit.probs[bestIdx].toFixed(2)}</span></div>
+              </div>
+              <div className="text-slate-600 text-sm">True rates: 0.18 · <span className="text-orange-500 font-semibold">0.62</span> · 0.44 · 0.43</div>
+            </header>
+
+            <div className="rounded-2xl bg-white shadow p-4">
+              <div className="grid gap-4 md:grid-cols-3 items-center">
+                <div className="space-y-1">
+                  <div className="text-sm font-medium">Left Strategy</div>
+                  <div className="flex gap-2 flex-wrap">
+                    <button onClick={() => { setLeftStrategy('greedy'); setAuto(false); }} className={`px-3 py-2 rounded-lg border ${leftStrategy==='greedy'? 'bg-slate-900 text-white':'bg-white'}`}>Greedy</button>
+                    <button onClick={() => { setLeftStrategy('egreedy'); setAuto(false); }} className={`px-3 py-2 rounded-lg border ${leftStrategy==='egreedy'? 'bg-slate-900 text-white':'bg-white'}`}>ε‑Greedy</button>
+                    <button onClick={() => { setLeftStrategy('ts'); setAuto(false); }} className={`px-3 py-2 rounded-lg border ${leftStrategy==='ts'? 'bg-slate-900 text-white':'bg-white'}`}>Thompson Sampling</button>
+                  </div>
+                </div>
+
+                {showEps ? (
+                  <label className="space-y-1">
+                    <div className="text-sm font-medium">ε: {epsilon.toFixed(2)}</div>
+                    <input type="range" min={0} max={1} step={0.01} value={epsilon} onChange={(e) => setEpsilon(parseFloat(e.target.value))} className="w-full" />
+                  </label>
+                ) : (
+                  <div></div>
+                )}
+
+                <div className="space-y-1">
+                  <div className="text-sm font-medium">Autoplay</div>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <input type="range" min={1} max={120} step={1} value={tickRate} onChange={(e) => setTickRate(parseInt(e.target.value))} />
+                    <span className="text-xs text-slate-500">{tickRate} steps/sec</span>
+                    <input type="range" min={1} max={100} step={1} value={batch} onChange={(e) => setBatch(parseInt(e.target.value))} />
+                    <span className="text-xs text-slate-500">{batch} steps/tick</span>
+                  </div>
+                </div>
+
+                <div className="md:col-span-3 flex flex-wrap gap-3 items-center">
+                  <button onClick={() => setAuto((x) => !x)} className={`px-3 py-2 rounded-lg text-white ${auto ? "bg-slate-600" : "bg-blue-600"}`}>{auto ? "Pause" : "Play"}</button>
+                  <button onClick={() => { setAuto(false); stepMany(batch); }} className="px-3 py-2 rounded-lg border">Step</button>
+                  <button onClick={() => { setAuto(false); setBandit(makeBandit()); resetLearning(); }} className="px-3 py-2 rounded-lg border">Reset Learning</button>
+                  <button onClick={() => runTests()} className="px-3 py-2 rounded-lg bg-purple-600 text-white">Run Tests</button>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-4">
+              {[0, 1].map((idx) => (
+                <div key={idx} className="rounded-2xl bg-white shadow p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-lg font-semibold">{agents[idx].name}</div>
+                    <div className="text-xs text-slate-500">plays: <span className="font-mono">{agents[idx].pulls}</span></div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="p-3 bg-slate-100 rounded-xl">
+                      <div className="text-slate-500">Cumulative Reward</div>
+                      <div className="text-xl font-semibold font-mono">{agents[idx].total.toFixed(0)}</div>
+                    </div>
+                    <div className="p-3 bg-slate-100 rounded-xl">
+                      <div className="text-slate-500">Avg Reward</div>
+                      <div className="text-xl font-semibold font-mono">{(agents[idx].pulls ? (agents[idx].total / agents[idx].pulls) : 0).toFixed(3)}</div>
+                    </div>
+                    <div className="p-3 bg-slate-100 rounded-xl">
+                      <div className="text-slate-500">Regret</div>
+                      <div className="text-xl font-semibold font-mono">{((agents[idx].history[agents[idx].history.length - 1] || { regret: 0 }).regret).toFixed(2)}</div>
+                    </div>
+                    <div className="p-3 bg-slate-100 rounded-xl">
+                      <div className="text-slate-500">Best‑Machine Play %</div>
+                      <div className="text-xl font-semibold font-mono">{(() => { const pullsBest = agents[idx].n[bestIdx] || 0; return agents[idx].pulls ? ((pullsBest / agents[idx].pulls) * 100).toFixed(1) + "%" : "0%"; })()}</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <div className="rounded-2xl bg-white shadow p-4">
+                <div className="text-lg font-semibold mb-2">True Jackpot Chances</div>
+                <BarCompare data={armBarsData} bestIdx={bestIdx} />
+              </div>
+            </div>
+
+            <div className="rounded-2xl bg-white shadow p-4">
+              <div className="text-lg font-semibold mb-2">Cumulative Reward Over Time</div>
+              <div className="h-72">
+                <canvas ref={rewardCanvasRef} className="w-full h-full"></canvas>
+              </div>
+            </div>
+
+            <div className="rounded-2xl bg-white shadow p-4">
+              <div className="text-lg font-semibold mb-2">Regret (lower is better)</div>
+              <div className="h-72">
+                <canvas ref={regretCanvasRef} className="w-full h-full"></canvas>
+              </div>
+            </div>
+
+            <div className="rounded-2xl bg-white shadow p-4">
+              <div className="text-lg font-semibold mb-2">Tests</div>
+              <button onClick={() => runTests()} className="mb-3 px-3 py-2 rounded-lg bg-purple-600 text-white">Run Tests</button>
+              <ul className="text-sm grid grid-cols-1 gap-y-1">
+                {tests.map((t,i)=> (
+                  <li key={i} className={`flex items-center justify-between border-b border-slate-100 py-1 ${t.pass?"text-emerald-700":"text-rose-700"}`}>
+                    <span>{t.name}</span>
+                    <span className="font-mono">{t.pass?"PASS":"FAIL"}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <footer className="text-xs text-slate-500 text-center pt-2">Single‑file website. Fixed rates: 0.18, 0.62, 0.44, 0.43.</footer>
+          </div>
+        </div>
+      );
+    }
+
+    (function mount() {
+      const el = document.getElementById('root');
+      try {
+        if (ReactDOM && typeof ReactDOM.createRoot === 'function') {
+          ReactDOM.createRoot(el).render(<App />);
+        } else if (ReactDOM && typeof ReactDOM.render === 'function') {
+          ReactDOM.render(<App />, el);
+        }
+      } catch (e) {
+        el.innerText = String(e);
+      }
+    })();
+  </script>
+</body>
+</html>
