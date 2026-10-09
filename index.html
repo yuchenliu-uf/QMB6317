@@ -1,376 +1,442 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Casino Demo — 4 Jackpot Machines</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>🎰</text></svg>">
-  <script src="https://cdn.tailwindcss.com"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <link rel="icon" href="data:,">
+  <title>Casino Demo: 4 Jackpot Machines</title>
+  <style>
+    :root { color-scheme: light; --ink:#0f172a; --muted:#64748b; --page:#f8fafc; --border:#e2e8f0; --blue:#2563eb; --green:#059669; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--page); color:var(--ink); font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    .wrap { max-width:1200px; margin:0 auto; padding:27px 24px 36px; }
+    header { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-start; gap:12px 18px; margin-bottom:22px; }
+    h1 { font-size:clamp(23px,2.4vw,30px); line-height:1.2; font-weight:720; letter-spacing:-.035em; margin:0 0 9px; }
+    h2 { font-size:18px; font-weight:650; letter-spacing:-.02em; margin:0 0 15px; }
+    .subtle { color:var(--muted); font-size:13px; line-height:1.55; }
+    .header-note { margin-top:5px; }
+    .header-meta { font-size:13px; color:#475569; background:#fff; border:1px solid var(--border); padding:9px 12px; border-radius:10px; white-space:nowrap; }
+    .card { background:white; border:1px solid #edf1f5; border-radius:16px; box-shadow:0 2px 12px rgba(15,23,42,.055); padding:20px; min-width:0; }
+    .controls { margin-bottom:16px; }
+    .control-grid { display:grid; grid-template-columns:1.3fr .9fr 1.2fr; gap:24px; align-items:start; }
+    .control-grid.two-col { grid-template-columns:1.2fr 1fr; }
+    .control-label { display:block; color:#334155; font-size:13px; font-weight:650; margin-bottom:10px; }
+    .segmented { display:flex; flex-wrap:wrap; gap:8px; }
+    button { border:1px solid #cbd5e1; background:white; color:#0f172a; font:inherit; font-size:13px; font-weight:550; padding:9px 13px; border-radius:9px; cursor:pointer; white-space:nowrap; transition:background-color .15s,border-color .15s; }
+    button:hover { background:#f1f5f9; }
+    button:focus-visible, input:focus-visible, summary:focus-visible { outline:3px solid #93c5fd; outline-offset:2px; }
+    button.selected { background:#0f172a; color:white; border-color:#0f172a; }
+    button.selected:hover { background:#334155; }
+    button.primary { background:var(--blue); color:white; border-color:var(--blue); }
+    button.primary:hover { background:#1d4ed8; }
+    .control-section { min-width:0; }
+    .sliders { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    .slider-label { display:flex; justify-content:space-between; align-items:baseline; gap:8px; color:#475569; font-size:12px; margin-bottom:8px; }
+    input[type=range] { display:block; width:100%; margin:4px 0; accent-color:#2563eb; cursor:pointer; }
+    .controls-actions { margin-top:19px; padding-top:16px; border-top:1px solid var(--border); display:flex; align-items:center; flex-wrap:wrap; gap:9px; }
+    .run-hint { margin-left:auto; font-size:12px; color:var(--muted); }
+    .dashboard { display:grid; grid-template-columns:1fr 1fr 1.2fr; gap:16px; align-items:stretch; margin-bottom:16px; }
+    .card-heading { display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:6px; margin-bottom:14px; }
+    .card-heading h2 { margin:0; }
+    .metric-grid { display:grid; grid-template-columns:1fr 1fr; gap:11px; }
+    .metric { padding:15px 13px; background:#f1f5f9; border-radius:11px; min-width:0; }
+    .metric .label { display:block; color:#64748b; font-size:12px; margin-bottom:5px; line-height:1.35; }
+    .metric .value { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:23px; font-weight:690; letter-spacing:-.045em; font-variant-numeric:tabular-nums; }
+    .machines { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; }
+    .machine { padding:10px 11px; border:1px solid #e2e8f0; border-radius:10px; min-width:0; background:#fafcff; }
+    .machine.best { border-color:#fcd34d; background:#fffbeb; }
+    .machine-top { display:flex; justify-content:space-between; align-items:center; gap:6px; margin-bottom:11px; font-size:12px; font-weight:650; }
+    .machine-top .prob { font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; font-weight:550; color:#334155; white-space:nowrap; }
+    .machine .row { display:flex; justify-content:space-between; gap:6px; color:#64748b; font-size:11px; line-height:1.1; }
+    .bar-track { height:6px; background:#e2e8f0; border-radius:12px; overflow:hidden; margin:5px 0 9px; }
+    .bar-fill { height:100%; border-radius:12px; transition:width .15s; }
+    .bar-fill.true { background:#64748b; }
+    .bar-fill.estimate { background:#10b981; }
+    .best-label { font-size:10px; font-weight:700; color:#92400e; margin-top:5px; }
+    .charts { display:grid; grid-template-columns:1fr; gap:16px; }
+    .chart-card h2 { margin-bottom:4px; }
+    .chart-desc { font-size:12px; color:var(--muted); margin:0 0 13px; }
+    .legend { display:flex; gap:20px; flex-wrap:wrap; margin:0 0 6px; font-size:12px; color:#475569; }
+    .legend-item { display:flex; align-items:center; gap:7px; }
+    .legend-line { width:22px; height:3px; border-radius:2px; display:inline-block; }
+    .chart-box { position:relative; height:278px; width:100%; }
+    canvas { display:block; width:100%; height:100%; }
+    details { margin-top:16px; color:#475569; font-size:13px; }
+    summary { cursor:pointer; width:max-content; font-weight:600; }
+    .test-line { margin:5px 0; }
+    .ok { color:#047857; } .fail { color:#be123c; }
+    footer { color:#94a3b8; font-size:12px; text-align:center; margin-top:21px; }
+    @media(max-width:900px) { .control-grid, .control-grid.two-col { grid-template-columns:1fr 1fr; } .dashboard { grid-template-columns:1fr 1fr; } .machine-card { grid-column:1 / -1; } .machines { grid-template-columns:repeat(4,minmax(0,1fr)); } }
+    @media(max-width:620px) { .wrap { padding:18px 13px 25px; } .card { padding:15px; } .control-grid, .control-grid.two-col, .dashboard { grid-template-columns:1fr; } .machine-card { grid-column:auto; } .machines { grid-template-columns:repeat(2,minmax(0,1fr)); } .run-hint { width:100%; margin-left:0; } .header-meta { white-space:normal; } .metric .value { font-size:21px; } }
+  </style>
 </head>
-<body class="bg-slate-50 text-slate-900">
-  <div id="root" class="min-h-screen"></div>
+<body>
+<main class="wrap">
+  <header>
+    <div>
+      <h1>Casino Demo: 4 Jackpot Machines</h1>
+      <div class="subtle">Winning probabilities: 0.18 · <strong style="color:#d97706">0.62</strong> · 0.44 · 0.43</div>
+      <div class="subtle header-note">Each play wins 1 reward with the machine's probability, or 0 otherwise.</div>
+    </div>
+    <div class="header-meta">True best: <strong>Machine 2</strong> &nbsp;·&nbsp; p★ = <strong>0.62</strong></div>
+  </header>
 
-  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <section class="card controls" aria-label="Simulation controls">
+    <div class="control-grid two-col">
+      <div class="control-section">
+        <span class="control-label">Learning strategy (compared with Random)</span>
+        <div class="segmented" id="strategies">
+          <button type="button" class="selected" data-strategy="greedy" aria-pressed="true">Greedy</button>
+          <button type="button" data-strategy="egreedy" aria-pressed="false">ε-Greedy</button>
+          <button type="button" data-strategy="ts" aria-pressed="false">Thompson Sampling</button>
+        </div>
+      </div>
+      <div class="control-section" id="epsilon-field" hidden>
+        <label class="control-label" for="epsilon">Exploration rate ε: <span id="epsilon-value">0.10</span></label>
+        <input type="range" id="epsilon" min="0" max="1" step="0.01" value="0.1">
+        <div class="subtle">Explore at random ε of the time.</div>
+      </div>
+      <div class="control-section">
+        <span class="control-label">Autoplay settings</span>
+        <div class="sliders">
+          <div><label class="slider-label" for="speed">Speed <span><span id="speed-value">30</span> ticks/s</span></label><input type="range" id="speed" min="1" max="60" value="30"></div>
+          <div><label class="slider-label" for="batch">Plays per tick <span id="batch-value">1</span></label><input type="range" id="batch" min="1" max="100" value="1"></div>
+        </div>
+      </div>
+    </div>
+    <div class="controls-actions">
+      <button id="play" type="button" class="primary">▶ Play</button>
+      <button id="step" type="button">Step</button>
+      <button id="reset" type="button">Reset Learning</button>
+      <span class="run-hint" id="status" role="status">0 plays per strategy</span>
+    </div>
+  </section>
 
-  <script type="text/babel" data-presets="env,react">
-    const { useEffect, useMemo, useRef, useState } = React;
+  <section class="dashboard" aria-label="Simulation results">
+    <article class="card">
+      <div class="card-heading"><h2 id="learner-title">Greedy (All Exploitation)</h2><span id="learner-plays" class="subtle">plays: 0</span></div>
+      <div class="metric-grid">
+        <div class="metric"><span class="label">Cumulative Reward</span><span class="value" id="learner-reward">0</span></div>
+        <div class="metric"><span class="label">Avg Reward</span><span class="value" id="learner-avg">0.000</span></div>
+        <div class="metric"><span class="label">Expected Regret</span><span class="value" id="learner-regret">0.00</span></div>
+        <div class="metric"><span class="label">Best-Machine Play %</span><span class="value" id="learner-best">0.0%</span></div>
+      </div>
+    </article>
+    <article class="card">
+      <div class="card-heading"><h2>Random (All Exploration)</h2><span id="random-plays" class="subtle">plays: 0</span></div>
+      <div class="metric-grid">
+        <div class="metric"><span class="label">Cumulative Reward</span><span class="value" id="random-reward">0</span></div>
+        <div class="metric"><span class="label">Avg Reward</span><span class="value" id="random-avg">0.000</span></div>
+        <div class="metric"><span class="label">Expected Regret</span><span class="value" id="random-regret">0.00</span></div>
+        <div class="metric"><span class="label">Best-Machine Play %</span><span class="value" id="random-best">0.0%</span></div>
+      </div>
+    </article>
+    <article class="card machine-card">
+      <h2>True Jackpot Chances</h2>
+      <div class="machines" id="machine-list"></div>
+    </article>
+  </section>
 
-    const FIXED_PROBS = [0.18, 0.62, 0.44, 0.43];
-    const choice = (n) => Math.floor(Math.random() * n);
-    const bernoulli = (p) => (Math.random() < p ? 1 : 0);
-    const argmax = (arr) => { let max = -Infinity, idxs = []; for (let i = 0; i < arr.length; i++) { const v = arr[i]; if (v > max) { max = v; idxs = [i]; } else if (v === max) idxs.push(i); } return idxs.length ? idxs[Math.floor(Math.random() * idxs.length)] : 0; };
+  <section class="charts" aria-label="Learning performance charts">
+    <article class="card chart-card">
+      <h2>Cumulative Reward Over Time</h2>
+      <p class="chart-desc">Actual jackpots won by each strategy.</p>
+      <div class="legend"><span class="legend-item"><i class="legend-line" style="background:#2563eb"></i><span class="learner-legend">Greedy</span></span><span class="legend-item"><i class="legend-line" style="background:#059669"></i>Random</span></div>
+      <div class="chart-box"><canvas id="reward-chart" role="img" aria-label="Cumulative reward chart comparing the learning strategy and random selection"></canvas></div>
+    </article>
+    <article class="card chart-card">
+      <h2>Expected Regret (lower is better)</h2>
+      <p class="chart-desc">Expected reward lost from not always choosing Machine 2. This measure cannot be negative.</p>
+      <div class="legend"><span class="legend-item"><i class="legend-line" style="background:#2563eb"></i><span class="learner-legend">Greedy</span></span><span class="legend-item"><i class="legend-line" style="background:#059669"></i>Random</span></div>
+      <div class="chart-box"><canvas id="regret-chart" role="img" aria-label="Expected regret chart comparing the learning strategy and random selection"></canvas></div>
+    </article>
+  </section>
 
-    function makeBandit() { const probs = FIXED_PROBS.slice(); const best = Math.max(...probs); return { probs, best }; }
-    function makeAgent(name, k) { return { name, q: Array(k).fill(0), n: Array(k).fill(0), a: Array(k).fill(1), b: Array(k).fill(1), total: 0, pulls: 0, history: [{ step: 0, reward: 0, cumReward: 0, regret: 0 }] }; }
+  <details>
+    <summary>Technical checks</summary>
+    <div style="margin-top:12px"><button type="button" id="test-button">Run Tests</button></div>
+    <div id="test-results" style="margin-top:8px" aria-live="polite"></div>
+  </details>
+  <footer>Single-file casino demonstration · No installation, internet connection, or external libraries required</footer>
+</main>
+<script>
+"use strict";
+(() => {
+  const PROBS = Object.freeze([0.18, 0.62, 0.44, 0.43]);
+  const BEST_ARM = 1;
+  const BEST_PROB = PROBS[BEST_ARM];
+  const MAX_PLAYS = 20000;
+  const NAMES = {greedy:"Greedy (All Exploitation)",egreedy:"ε-Greedy",ts:"Thompson Sampling"};
+  const SHORT_NAMES = {greedy:"Greedy",egreedy:"ε-Greedy",ts:"Thompson Sampling"};
+  const $ = id => document.getElementById(id);
+  const integer = n => Math.floor(n);
+  const randomArm = (rng=Math.random) => integer(rng()*PROBS.length);
+  const bernoulli = (p,rng=Math.random) => Number(rng()<p);
 
-    function drawLineChart(canvas, series, opts={}) {
-      const ctx = canvas.getContext('2d');
-      const w = canvas.width = canvas.clientWidth;
-      const h = canvas.height = canvas.clientHeight;
-      ctx.clearRect(0,0,w,h);
-      const pad = 32;
-      const innerW = w - pad*2, innerH = h - pad*2;
-      const maxX = Math.max(1, ...series.map(s => s.data.length? s.data[s.data.length-1].x : 1));
-      const ys = series.flatMap(s => s.data.map(p => p.y));
-      const maxY = ys.length ? Math.max(1e-9, ...ys) : 1;
-      const minY = ys.length ? Math.min(0, ...ys) : 0;
-      const yRange = (maxY - minY) || 1;
-      ctx.strokeStyle = '#cbd5e1';
-      ctx.lineWidth = 1;
-      ctx.setLineDash([4,4]);
-      ctx.beginPath();
-      ctx.moveTo(pad, pad);
-      ctx.lineTo(pad, h-pad);
-      ctx.lineTo(w-pad, h-pad);
+  function argmaxTie(values,rng=Math.random) {
+    let max = -Infinity;
+    const ties = [];
+    for (let i=0;i<values.length;i++) {
+      if (values[i]>max) { max=values[i]; ties.length=0; ties.push(i); }
+      else if (values[i]===max) ties.push(i);
+    }
+    return ties[integer(rng()*ties.length)];
+  }
+
+  function standardNormal(rng=Math.random) {
+    let u=0;
+    while(u===0) u=rng();
+    return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*rng());
+  }
+
+  function gammaSample(shape,rng=Math.random) {
+    if (!(shape>0)) throw new RangeError("Gamma shape must be positive");
+    if (shape<1) return gammaSample(shape+1,rng)*Math.pow(rng(),1/shape);
+    const d=shape-1/3;
+    const c=1/Math.sqrt(9*d);
+    for (;;) {
+      const x=standardNormal(rng);
+      const base=1+c*x;
+      if (base<=0) continue;
+      const v=base*base*base;
+      const u=rng();
+      if(u<1-0.0331*x*x*x*x || Math.log(u)<0.5*x*x+d*(1-v+Math.log(v))) return d*v;
+    }
+  }
+
+  function sampleBeta(a,b,rng=Math.random) {
+    const x=gammaSample(a,rng);
+    const y=gammaSample(b,rng);
+    return x/(x+y);
+  }
+
+  function newAgent() {
+    return { pulls:0,total:0,regret:0,counts:[0,0,0,0],wins:[0,0,0,0],q:[0,0,0,0],alpha:[1,1,1,1],beta:[1,1,1,1], rewards:[0], regrets:[0] };
+  }
+
+  function chooseArm(agent,policy,epsilon,rng=Math.random) {
+    if(policy==="random") return randomArm(rng);
+    if(policy==="greedy") return argmaxTie(agent.q,rng);
+    if(policy==="egreedy") return rng()<epsilon ? randomArm(rng) : argmaxTie(agent.q,rng);
+    if(policy==="ts") return argmaxTie(agent.alpha.map((a,i)=>sampleBeta(a,agent.beta[i],rng)),rng);
+    throw new Error("Unknown strategy");
+  }
+
+  function pull(agent,policy,epsilon,rng=Math.random) {
+    const arm=chooseArm(agent,policy,epsilon,rng);
+    const reward=bernoulli(PROBS[arm],rng);
+    agent.pulls++;
+    agent.total+=reward;
+    agent.counts[arm]++;
+    agent.wins[arm]+=reward;
+    agent.q[arm]=agent.wins[arm]/agent.counts[arm];
+    agent.alpha[arm]+=reward;
+    agent.beta[arm]+=1-reward;
+    agent.regret+=BEST_PROB-PROBS[arm];
+    agent.rewards.push(agent.total);
+    agent.regrets.push(agent.regret);
+    return {arm,reward};
+  }
+
+  const state={policy:"greedy",epsilon:0.1,speed:30,batch:1,auto:false,learner:newAgent(),random:newAgent()};
+  let timer=null;
+
+  function stop() {
+    state.auto=false;
+    if(timer!==null) { clearInterval(timer); timer=null; }
+    $("play").textContent="▶ Play";
+  }
+
+  function advance() {
+    const amount=Math.min(state.batch,MAX_PLAYS-state.learner.pulls);
+    for(let i=0;i<amount;i++) {
+      pull(state.learner,state.policy,state.epsilon);
+      pull(state.random,"random",state.epsilon);
+    }
+    if(state.learner.pulls>=MAX_PLAYS) stop();
+    render();
+  }
+
+  function start() {
+    if(state.learner.pulls>=MAX_PLAYS) return;
+    stop();
+    state.auto=true;
+    $("play").textContent="Ⅱ Pause";
+    timer=setInterval(advance,Math.max(16,Math.round(1000/state.speed)));
+  }
+
+  function reset() {
+    stop();
+    state.learner=newAgent();
+    state.random=newAgent();
+    render();
+  }
+
+  function setStrategy(policy) {
+    if(policy===state.policy) return;
+    state.policy=policy;
+    $("epsilon-field").hidden=(policy!=="egreedy");
+    document.querySelector(".control-grid").classList.toggle("two-col",policy!=="egreedy");
+    for(const button of document.querySelectorAll("[data-strategy]")) {
+      const active=button.dataset.strategy===policy;
+      button.classList.toggle("selected",active);
+      button.setAttribute("aria-pressed",String(active));
+    }
+    reset();
+  }
+
+  function renderAgent(prefix,agent) {
+    $(prefix+"-plays").textContent="plays: "+agent.pulls.toLocaleString();
+    $(prefix+"-reward").textContent=agent.total.toLocaleString();
+    $(prefix+"-avg").textContent=(agent.pulls?agent.total/agent.pulls:0).toFixed(3);
+    $(prefix+"-regret").textContent=agent.regret.toFixed(2);
+    $(prefix+"-best").textContent=(agent.pulls?100*agent.counts[BEST_ARM]/agent.pulls:0).toFixed(1)+"%";
+  }
+
+  function machineEstimate(index) {
+    const a=state.learner;
+    if(state.policy==="ts") return {value:a.alpha[index]/(a.alpha[index]+a.beta[index]),label:"Posterior mean"};
+    if(!a.counts[index]) return {value:0,label:"Not tried"};
+    return {value:a.q[index],label:"Estimate"};
+  }
+
+  function renderMachines() {
+    const container=$("machine-list");
+    container.replaceChildren();
+    PROBS.forEach((p,i)=>{
+      const est=machineEstimate(i);
+      const card=document.createElement("div");
+      card.className="machine"+(i===BEST_ARM?" best":"");
+      card.innerHTML=`<div class="machine-top"><span>Machine ${i+1}</span><span class="prob">p = ${p.toFixed(2)}</span></div>
+        <div class="row"><span>True rate</span><span>${p.toFixed(2)}</span></div>
+        <div class="bar-track"><div class="bar-fill true" style="width:${p*100}%"></div></div>
+        <div class="row"><span>${est.label}</span><span>${est.label==="Not tried"?"—":est.value.toFixed(2)}</span></div>
+        <div class="bar-track"><div class="bar-fill estimate" style="width:${est.value*100}%"></div></div>
+        ${i===BEST_ARM?'<div class="best-label">★ True best machine</div>':''}`;
+      container.appendChild(card);
+    });
+  }
+
+  function paintChart(canvas,key) {
+    const rect=canvas.getBoundingClientRect();
+    const w=Math.max(240,rect.width);
+    const h=Math.max(170,rect.height);
+    const dpr=window.devicePixelRatio||1;
+    canvas.width=Math.round(w*dpr);
+    canvas.height=Math.round(h*dpr);
+    const ctx=canvas.getContext("2d");
+    ctx.scale(dpr,dpr);
+    ctx.clearRect(0,0,w,h);
+    const a=key==="reward"?state.learner.rewards:state.learner.regrets;
+    const b=key==="reward"?state.random.rewards:state.random.regrets;
+    const n=Math.max(1,state.learner.pulls);
+    const maxValue=Math.max(1,a[a.length-1],b[b.length-1]);
+    const niceTop=Math.max(1,Math.ceil(maxValue/5)*5);
+    const left=47,right=18,top=15,bottom=36;
+    const pw=w-left-right,ph=h-top-bottom;
+    ctx.font="12px system-ui,-apple-system,sans-serif";
+    ctx.lineWidth=1;
+    ctx.strokeStyle="#e2e8f0";
+    ctx.fillStyle="#64748b";
+    for(let i=0;i<=4;i++) {
+      const y=top+(4-i)*ph/4;
+      ctx.beginPath();ctx.moveTo(left,y);ctx.lineTo(w-right,y);ctx.stroke();
+      ctx.textAlign="right";ctx.textBaseline="middle";
+      ctx.fillText((niceTop*i/4).toFixed(niceTop<10?1:0),left-9,y);
+    }
+    for(let i=0;i<=4;i++) {
+      const x=left+pw*i/4;
+      ctx.beginPath();ctx.moveTo(x,top);ctx.lineTo(x,top+ph);ctx.stroke();
+      ctx.textAlign="center";ctx.textBaseline="top";
+      if(n>=4 || (n===0 && i===0) || (n>0 && (i===0 || i===4))) ctx.fillText(Math.round(n*i/4).toLocaleString(),x,top+ph+9);
+    }
+    ctx.textAlign="center";ctx.fillStyle="#64748b";
+    ctx.fillText("Number of plays per strategy",left+pw/2,h-13);
+    const step=Math.max(1,Math.ceil(n/900));
+    const path=(values,color)=>{
+      ctx.beginPath();ctx.lineWidth=2.5;ctx.lineJoin="round";ctx.strokeStyle=color;
+      for(let i=0;i<=n;i+=step) {
+        const x=left+pw*i/n,y=top+ph*(1-values[i]/niceTop);
+        if(i===0) ctx.moveTo(x,y);else ctx.lineTo(x,y);
+      }
+      if(n%step!==0) ctx.lineTo(left+pw,top+ph*(1-values[n]/niceTop));
       ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.fillStyle = '#64748b';
-      ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto';
-      ctx.textAlign = 'right';
-      ctx.fillText(maxY.toFixed(0), pad-6, pad+4);
-      ctx.fillText(minY.toFixed(0), pad-6, h-pad);
-      ctx.textAlign = 'center';
-      ctx.fillText(maxX.toFixed(0), w-pad, h-pad+14);
-      const colors = opts.colors || ['#2563eb','#10b981','#ef4444','#f59e0b'];
-      series.forEach((s, si) => {
-        ctx.strokeStyle = colors[si % colors.length];
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        s.data.forEach((p, i) => {
-          const x = pad + (p.x / Math.max(1,maxX)) * innerW;
-          const y = pad + (1 - (p.y - minY)/yRange) * innerH;
-          if (i === 0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-        });
-        ctx.stroke();
-        ctx.fillStyle = colors[si % colors.length];
-        ctx.fillText(s.name, pad + 70 + si*160, pad - 10);
-      });
+    };
+    path(a,"#2563eb");path(b,"#059669");
+  }
+
+  function render() {
+    $("learner-title").textContent=NAMES[state.policy];
+    document.querySelectorAll(".learner-legend").forEach(el=>el.textContent=SHORT_NAMES[state.policy]);
+    renderAgent("learner",state.learner);
+    renderAgent("random",state.random);
+    renderMachines();
+    const n=state.learner.pulls;
+    $("status").textContent=n.toLocaleString()+" plays per strategy"+(n>=MAX_PLAYS?" · maximum reached":"");
+    paintChart($("reward-chart"),"reward");
+    paintChart($("regret-chart"),"regret");
+  }
+
+  function runTests() {
+    const tests=[];
+    const check=(name,ok)=>tests.push({name,ok:!!ok});
+    const approx=(x,y)=>Math.abs(x-y)<1e-9;
+    check("Fixed rates and correct best machine",JSON.stringify(PROBS)==="[0.18,0.62,0.44,0.43]" && BEST_ARM===1);
+    check("Greedy selects the greatest estimate",chooseArm({...newAgent(),q:[.1,.4,.2,.3]},"greedy",0,()=>.5)===1);
+    check("Greedy tie-breaking can select any tied arm",argmaxTie([0,0,0,0],()=>.99)===3);
+    check("ε=0 exploits",chooseArm({...newAgent(),q:[0,0,.8,0]},"egreedy",0,()=>.5)===2);
+    check("ε=1 explores",chooseArm({...newAgent(),q:[0,.9,0,0]},"egreedy",1,()=>.1)===0);
+    const agent=newAgent();
+    pull(agent,"random",0,()=>0);
+    check("Win increments counts, estimate and Beta success",agent.pulls===1 && agent.total===1 && agent.q[0]===1 && agent.alpha[0]===2 && agent.beta[0]===1);
+    check("Pseudo-regret is nonnegative and correct",approx(agent.regret,.62-.18));
+    pull(agent,"random",0,()=>.999);
+    check("Loss increments Beta failure",agent.beta[3]===2 && agent.total===1);
+    check("Reward/regret trajectories match number of plays",agent.rewards.length===3 && agent.regrets.length===3);
+    check("New agent starts with zero plays",newAgent().pulls===0 && newAgent().total===0);
+    let samplesValid=true;
+    for(let i=0;i<100;i++) {
+      const s=sampleBeta(1+i%5,1+i%7);
+      if(!(s>0 && s<1)) {samplesValid=false;break;}
     }
-
-    function BarCompare({ data, bestIdx }) {
-      return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-          {data.map((d,i) => (
-            <div key={i} className="p-4 bg-white rounded-xl shadow border border-slate-100">
-              <div className="space-y-1">
-                <div className="text-sm font-semibold">Machine {i+1}</div>
-                <div className="inline-block px-2 py-0.5 rounded-md bg-slate-100 font-mono text-xs text-slate-700">p = {d.trueP.toFixed(2)}</div>
-              </div>
-              <div className="mt-3 space-y-2">
-                <div className="text-[11px] text-slate-500">True</div>
-                <div className="h-2 bg-slate-200 rounded overflow-hidden">
-                  <div className="h-2 rounded bg-slate-500" style={{ width: (Math.max(0, Math.min(1, d.trueP)) * 100) + '%' }}></div>
-                </div>
-                <div className="text-[11px] text-slate-500">Estimate</div>
-                <div className="h-2 bg-slate-200 rounded overflow-hidden">
-                  <div className="h-2 rounded bg-emerald-500" style={{ width: (Math.max(0, Math.min(1, d.est)) * 100) + '%' }}></div>
-                </div>
-              </div>
-              {i === bestIdx ? (
-                <div className="mt-3 text-center text-[12px] font-semibold text-orange-500">true best machine</div>
-              ) : null}
-            </div>
-          ))}
-        </div>
-      );
+    check("Thompson Sampling Beta samples stay between 0 and 1",samplesValid);
+    const results=$("test-results");
+    results.replaceChildren();
+    for(const t of tests) {
+      const line=document.createElement("div");
+      line.className="test-line "+(t.ok?"ok":"fail");
+      line.textContent=(t.ok?"PASS":"FAIL")+" — "+t.name;
+      results.appendChild(line);
     }
+    const summary=document.createElement("strong");
+    summary.textContent=`${tests.filter(t=>t.ok).length}/${tests.length} checks passed`;
+    results.prepend(summary);
+  }
 
-    function App() {
-      const k = 4;
-      const [bandit, setBandit] = useState(() => makeBandit());
-      const [epsilon, setEpsilon] = useState(0.1);
-      const [auto, setAuto] = useState(false);
-      const [tickRate, setTickRate] = useState(30);
-      const [batch, setBatch] = useState(1);
-      const [leftStrategy, setLeftStrategy] = useState('greedy');
-      const [agents, setAgents] = useState(() => [makeAgent("Greedy (All Exploitation)", k), makeAgent("Random (All Exploration)", k)]);
-      const [tests, setTests] = useState([]);
-      const timerRef = useRef(null);
-      const epsRef = useRef(epsilon);
-      const banditRef = useRef(bandit);
-      const batchRef = useRef(batch);
-      const rewardCanvasRef = useRef(null);
-      const regretCanvasRef = useRef(null);
-
-      useEffect(() => { epsRef.current = epsilon; }, [epsilon]);
-      useEffect(() => { banditRef.current = bandit; }, [bandit]);
-      useEffect(() => { batchRef.current = batch; }, [batch]);
-
-      useEffect(() => {
-        const names = { greedy: "Greedy (All Exploitation)", egreedy: "ε‑Greedy", ts: "Thompson Sampling" };
-        setAgents([makeAgent(names[leftStrategy], k), makeAgent("Random (All Exploration)", k)]);
-      }, [leftStrategy]);
-
-      const bestIdx = useMemo(() => { let m = -1, mi = 0; for (let i = 0; i < bandit.probs.length; i++) { if (bandit.probs[i] > m) { m = bandit.probs[i]; mi = i; } } return mi; }, [bandit]);
-
-      const stepMany = (times) => {
-        const localBandit = banditRef.current;
-        const localBestIdx = (() => { let m = -1, mi = 0; for (let i = 0; i < localBandit.probs.length; i++) { if (localBandit.probs[i] > m) { m = localBandit.probs[i]; mi = i; } } return mi; })();
-        const localEps = epsRef.current;
-        const strat = leftStrategy;
-        setAgents((prev) => {
-          let left = { ...prev[0] };
-          let right = { ...prev[1] };
-          const pickArm = (agent, policy) => {
-            if (policy === 'random') return choice(k);
-            if (policy === 'greedy') return argmax(agent.q);
-            if (policy === 'egreedy') return Math.random() < localEps ? choice(k) : argmax(agent.q);
-            if (policy === 'ts') {
-              let best = 0, idx = 0;
-              for (let i=0;i<k;i++) { const theta = sampleBeta(agent.a[i], agent.b[i]); if (i===0 || theta>best){ best=theta; idx=i; } }
-              return idx;
-            }
-            return choice(k);
-          };
-          const pull = (agent, policy) => {
-            const armIdx = pickArm(agent, policy);
-            const r = bernoulli(localBandit.probs[armIdx]);
-            const n = agent.n.slice();
-            const q = agent.q.slice();
-            const a = agent.a.slice();
-            const b = agent.b.slice();
-            n[armIdx] += 1;
-            q[armIdx] += (r - q[armIdx]) / n[armIdx];
-            a[armIdx] += r;
-            b[armIdx] += (1 - r);
-            const pulls = agent.pulls + 1;
-            const total = agent.total + r;
-            const ideal = pulls * localBandit.probs[localBestIdx];
-            const regret = ideal - total;
-            return { ...agent, n, q, a, b, pulls, total, history: agent.history.concat({ step: pulls, reward: r, cumReward: total, regret }) };
-          };
-          for (let i = 0; i < times; i++) {
-            left = pull(left, strat);
-            right = pull(right, 'random');
-          }
-          return [left, right];
-        });
-      };
-
-      function sampleBeta(alpha, beta) {
-        const x = gammaSample(alpha);
-        const y = gammaSample(beta);
-        return x/(x+y);
-      }
-      function gammaSample(shape) {
-        const d = shape - 1/3; const c = 1/Math.sqrt(9*d);
-        while(true){
-          let x, v;
-          do { x = normal01(); v = 1 + c*x; } while (v <= 0);
-          v = v*v*v;
-          const u = Math.random();
-          if (u < 1 - 0.331*x*x*x*x) return d*v;
-          if (Math.log(u) < 0.5*x*x + d*(1 - v + Math.log(v))) return d*v;
-        }
-      }
-      function normal01(){
-        let u=0, v=0; while(u===0) u=Math.random(); while(v===0) v=Math.random(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
-      }
-
-      useEffect(() => {
-        if (!auto) { if (timerRef.current) clearInterval(timerRef.current); timerRef.current = null; return; }
-        const interval = Math.max(5, Math.round(1000 / Math.max(1, tickRate)));
-        timerRef.current = setInterval(() => { stepMany(batchRef.current); }, interval);
-        return () => { if (timerRef.current) clearInterval(timerRef.current); timerRef.current = null; };
-      }, [auto, tickRate, leftStrategy]);
-
-      const resetLearning = () => {
-        const names = { greedy: "Greedy (All Exploitation)", egreedy: "ε‑Greedy", ts: "Thompson Sampling" };
-        setAgents([makeAgent(names[leftStrategy], k), makeAgent("Random (All Exploration)", k)]);
-        setAuto(false);
-      };
-
-      const chartData = useMemo(() => {
-        const len = Math.max(agents[0].history.length, agents[1].history.length);
-        const data = [];
-        for (let i = 0; i < len; i++) {
-          const p0 = agents[0].history[i] || agents[0].history[agents[0].history.length - 1];
-          const p1 = agents[1].history[i] || agents[1].history[agents[1].history.length - 1];
-          data.push({ step: p0.step, left: p0.cumReward, right: p1.cumReward, regretL: p0.regret, regretR: p1.regret });
-        }
-        return data;
-      }, [agents]);
-
-      useEffect(() => {
-        const rewardSeries = [
-          { name: agents[0].name, data: chartData.map(d=>({x:d.step,y:d.left})) },
-          { name: agents[1].name, data: chartData.map(d=>({x:d.step,y:d.right})) },
-        ];
-        const regretSeries = [
-          { name: agents[0].name, data: chartData.map(d=>({x:d.step,y:d.regretL})) },
-          { name: agents[1].name, data: chartData.map(d=>({x:d.step,y:d.regretR})) },
-        ];
-        if (rewardCanvasRef.current) drawLineChart(rewardCanvasRef.current, rewardSeries);
-        if (regretCanvasRef.current) drawLineChart(regretCanvasRef.current, regretSeries);
-      }, [chartData, agents]);
-
-      const leftEstimates = useMemo(() => {
-        if (leftStrategy === 'ts') return agents[0].a.map((aa,i)=>{ const bb = agents[0].b[i]; const denom = aa + bb; return denom ? (aa/denom) : 0; });
-        return agents[0].q;
-      }, [agents, leftStrategy]);
-
-      const armBarsData = useMemo(() => bandit.probs.map((p, i) => ({ trueP: p, est: leftEstimates[i] || 0 })), [bandit, leftEstimates]);
-
-      const runTests = () => {
-        const results = [];
-        try { const idx = argmax([1,1,1]); results.push({ name: "argmax tie", pass: [0,1,2].includes(idx) }); } catch (e) { results.push({ name: "argmax tie", pass: false }); }
-        try { const b = makeBandit(); const ok = b.probs.length===4 && b.probs[1]===0.62; results.push({ name: "fixed bandit", pass: ok }); } catch (e) { results.push({ name: "fixed bandit", pass: false }); }
-        try { const a = makeAgent("TS",4); const s = sampleBeta(a.a[0], a.b[0]); results.push({ name: "beta sampler", pass: s>0 && s<1 }); } catch(e){ results.push({ name: "beta sampler", pass:false }); }
-        setTests(results);
-      };
-
-      const showEps = leftStrategy === 'egreedy';
-
-      return (
-        <div className="min-h-screen p-6">
-          <div className="mx-auto max-w-6xl space-y-6">
-            <header className="space-y-1">
-              <div className="flex items-center justify-between">
-                <h1 className="text-2xl md:text-3xl font-semibold">Casino Demo: 4 Jackpot Machines</h1>
-                <div className="text-sm text-slate-600">Best p★ = <span className="font-mono">{bandit.probs[bestIdx].toFixed(2)}</span></div>
-              </div>
-              <div className="text-slate-600 text-sm">True rates: 0.18 · <span className="text-orange-500 font-semibold">0.62</span> · 0.44 · 0.43</div>
-            </header>
-
-            <div className="rounded-2xl bg-white shadow p-4">
-              <div className="grid gap-4 md:grid-cols-3 items-center">
-                <div className="space-y-1">
-                  <div className="text-sm font-medium">Left Strategy</div>
-                  <div className="flex gap-2 flex-wrap">
-                    <button onClick={() => { setLeftStrategy('greedy'); setAuto(false); }} className={`px-3 py-2 rounded-lg border ${leftStrategy==='greedy'? 'bg-slate-900 text-white':'bg-white'}`}>Greedy</button>
-                    <button onClick={() => { setLeftStrategy('egreedy'); setAuto(false); }} className={`px-3 py-2 rounded-lg border ${leftStrategy==='egreedy'? 'bg-slate-900 text-white':'bg-white'}`}>ε‑Greedy</button>
-                    <button onClick={() => { setLeftStrategy('ts'); setAuto(false); }} className={`px-3 py-2 rounded-lg border ${leftStrategy==='ts'? 'bg-slate-900 text-white':'bg-white'}`}>Thompson Sampling</button>
-                  </div>
-                </div>
-
-                {showEps ? (
-                  <label className="space-y-1">
-                    <div className="text-sm font-medium">ε: {epsilon.toFixed(2)}</div>
-                    <input type="range" min={0} max={1} step={0.01} value={epsilon} onChange={(e) => setEpsilon(parseFloat(e.target.value))} className="w-full" />
-                  </label>
-                ) : (
-                  <div></div>
-                )}
-
-                <div className="space-y-1">
-                  <div className="text-sm font-medium">Autoplay</div>
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <input type="range" min={1} max={120} step={1} value={tickRate} onChange={(e) => setTickRate(parseInt(e.target.value))} />
-                    <span className="text-xs text-slate-500">{tickRate} steps/sec</span>
-                    <input type="range" min={1} max={100} step={1} value={batch} onChange={(e) => setBatch(parseInt(e.target.value))} />
-                    <span className="text-xs text-slate-500">{batch} steps/tick</span>
-                  </div>
-                </div>
-
-                <div className="md:col-span-3 flex flex-wrap gap-3 items-center">
-                  <button onClick={() => setAuto((x) => !x)} className={`px-3 py-2 rounded-lg text-white ${auto ? "bg-slate-600" : "bg-blue-600"}`}>{auto ? "Pause" : "Play"}</button>
-                  <button onClick={() => { setAuto(false); stepMany(batch); }} className="px-3 py-2 rounded-lg border">Step</button>
-                  <button onClick={() => { setAuto(false); setBandit(makeBandit()); resetLearning(); }} className="px-3 py-2 rounded-lg border">Reset Learning</button>
-                  <button onClick={() => runTests()} className="px-3 py-2 rounded-lg bg-purple-600 text-white">Run Tests</button>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid md:grid-cols-3 gap-4">
-              {[0, 1].map((idx) => (
-                <div key={idx} className="rounded-2xl bg-white shadow p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="text-lg font-semibold">{agents[idx].name}</div>
-                    <div className="text-xs text-slate-500">plays: <span className="font-mono">{agents[idx].pulls}</span></div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div className="p-3 bg-slate-100 rounded-xl">
-                      <div className="text-slate-500">Cumulative Reward</div>
-                      <div className="text-xl font-semibold font-mono">{agents[idx].total.toFixed(0)}</div>
-                    </div>
-                    <div className="p-3 bg-slate-100 rounded-xl">
-                      <div className="text-slate-500">Avg Reward</div>
-                      <div className="text-xl font-semibold font-mono">{(agents[idx].pulls ? (agents[idx].total / agents[idx].pulls) : 0).toFixed(3)}</div>
-                    </div>
-                    <div className="p-3 bg-slate-100 rounded-xl">
-                      <div className="text-slate-500">Regret</div>
-                      <div className="text-xl font-semibold font-mono">{((agents[idx].history[agents[idx].history.length - 1] || { regret: 0 }).regret).toFixed(2)}</div>
-                    </div>
-                    <div className="p-3 bg-slate-100 rounded-xl">
-                      <div className="text-slate-500">Best‑Machine Play %</div>
-                      <div className="text-xl font-semibold font-mono">{(() => { const pullsBest = agents[idx].n[bestIdx] || 0; return agents[idx].pulls ? ((pullsBest / agents[idx].pulls) * 100).toFixed(1) + "%" : "0%"; })()}</div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-              <div className="rounded-2xl bg-white shadow p-4">
-                <div className="text-lg font-semibold mb-2">True Jackpot Chances</div>
-                <BarCompare data={armBarsData} bestIdx={bestIdx} />
-              </div>
-            </div>
-
-            <div className="rounded-2xl bg-white shadow p-4">
-              <div className="text-lg font-semibold mb-2">Cumulative Reward Over Time</div>
-              <div className="h-72">
-                <canvas ref={rewardCanvasRef} className="w-full h-full"></canvas>
-              </div>
-            </div>
-
-            <div className="rounded-2xl bg-white shadow p-4">
-              <div className="text-lg font-semibold mb-2">Regret (lower is better)</div>
-              <div className="h-72">
-                <canvas ref={regretCanvasRef} className="w-full h-full"></canvas>
-              </div>
-            </div>
-
-            <div className="rounded-2xl bg-white shadow p-4">
-              <div className="text-lg font-semibold mb-2">Tests</div>
-              <button onClick={() => runTests()} className="mb-3 px-3 py-2 rounded-lg bg-purple-600 text-white">Run Tests</button>
-              <ul className="text-sm grid grid-cols-1 gap-y-1">
-                {tests.map((t,i)=> (
-                  <li key={i} className={`flex items-center justify-between border-b border-slate-100 py-1 ${t.pass?"text-emerald-700":"text-rose-700"}`}>
-                    <span>{t.name}</span>
-                    <span className="font-mono">{t.pass?"PASS":"FAIL"}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <footer className="text-xs text-slate-500 text-center pt-2">Single‑file website. Fixed rates: 0.18, 0.62, 0.44, 0.43.</footer>
-          </div>
-        </div>
-      );
-    }
-
-    (function mount() {
-      const el = document.getElementById('root');
-      try {
-        if (ReactDOM && typeof ReactDOM.createRoot === 'function') {
-          ReactDOM.createRoot(el).render(<App />);
-        } else if (ReactDOM && typeof ReactDOM.render === 'function') {
-          ReactDOM.render(<App />, el);
-        }
-      } catch (e) {
-        el.innerText = String(e);
-      }
-    })();
-  </script>
+  $("strategies").addEventListener("click",event=>{
+    const button=event.target.closest("button[data-strategy]");
+    if(button) setStrategy(button.dataset.strategy);
+  });
+  $("epsilon").addEventListener("input",event=>{state.epsilon=Number(event.target.value);$("epsilon-value").textContent=state.epsilon.toFixed(2);});
+  $("speed").addEventListener("input",event=>{
+    state.speed=Number(event.target.value);$("speed-value").textContent=state.speed;
+    if(state.auto) start();
+  });
+  $("batch").addEventListener("input",event=>{state.batch=Number(event.target.value);$("batch-value").textContent=state.batch;});
+  $("play").addEventListener("click",()=>state.auto?stop():start());
+  $("step").addEventListener("click",()=>{stop();advance();});
+  $("reset").addEventListener("click",reset);
+  $("test-button").addEventListener("click",runTests);
+  if(typeof ResizeObserver!=="undefined") {
+    const observer=new ResizeObserver(()=>{
+      paintChart($("reward-chart"),"reward");
+      paintChart($("regret-chart"),"regret");
+    });
+    document.querySelectorAll(".chart-box").forEach(el=>observer.observe(el));
+  } else window.addEventListener("resize",render);
+  render();
+})();
+</script>
 </body>
 </html>
